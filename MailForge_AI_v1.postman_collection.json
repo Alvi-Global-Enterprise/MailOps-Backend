@@ -1,0 +1,982 @@
+{
+    "info": {
+        "_postman_id": "mailforge-ai-v1-collection",
+        "name": "MailForge AI REST API (v1)",
+        "description": "Complete Postman collection for the MailForge AI backend engine.\n\n### Workflow Quickstart:\n1. Run **Authentication > Register** or **Login** (Bearer token is automatically saved into the `token` collection variable via test script).\n2. Run **Excel Contact Import > Import Contacts from Spreadsheet** or **Contacts > Create Contact**.\n3. Run **Campaigns > Create Campaign (Generate Mode)**.\n4. Run **Campaigns - Recipients > Add Recipients to Campaign**.\n5. Run **Campaigns - Lifecycle > 1. Trigger AI Generation**.\n6. Run **Campaigns - Lifecycle > 2. Approve Campaign**.\n7. Run **Campaigns - Lifecycle > 3. Dispatch Campaign**.\n8. Check progress via **Campaigns > Get Campaign Live Status**.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8000/api/v1",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "contact_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "campaign_id",
+            "value": "1",
+            "type": "string"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "1. Authentication",
+            "item": [
+                {
+                    "name": "Register User",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.token) {",
+                                    "        pm.collectionVariables.set(\"token\", json.data.token);",
+                                    "        console.log(\"Token saved: \" + json.data.token);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Fahad\",\n    \"email\": \"fahad@example.com\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\",\n    \"device_name\": \"postman\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Registers a new user account and saves the returned Sanctum Bearer token."
+                    }
+                },
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.token) {",
+                                    "        pm.collectionVariables.set(\"token\", json.data.token);",
+                                    "        console.log(\"Token saved: \" + json.data.token);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"fahad@example.com\",\n    \"password\": \"Password123!\",\n    \"device_name\": \"postman\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticates user credentials and automatically updates the collection `token` variable."
+                    }
+                },
+                {
+                    "name": "Get Authenticated User",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/user",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "user"
+                            ]
+                        },
+                        "description": "Returns current authenticated user profile."
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/logout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Revokes the current bearer token."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. Contacts",
+            "item": [
+                {
+                    "name": "List Contacts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts?per_page=25&page=1&search=&sort_by=created_at&sort_dir=desc",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "source",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "is_active",
+                                    "value": "true",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort_by",
+                                    "value": "created_at"
+                                },
+                                {
+                                    "key": "sort_dir",
+                                    "value": "desc"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves a paginated list of contacts belonging to the authenticated user."
+                    }
+                },
+                {
+                    "name": "Create Contact",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.id) {",
+                                    "        pm.collectionVariables.set(\"contact_id\", json.data.id);",
+                                    "        console.log(\"Contact ID saved: \" + json.data.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"prospect@acmecorp.com\",\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Doe\",\n    \"company\": \"Acme Technologies\",\n    \"job_title\": \"Chief Technology Officer\",\n    \"phone\": \"+1-555-0199\",\n    \"custom_data\": {\n        \"industry\": \"Cloud & SaaS\",\n        \"lead_score\": 95,\n        \"city\": \"San Francisco\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts"
+                            ]
+                        },
+                        "description": "Creates a contact and auto-saves the new ID into `contact_id`."
+                    }
+                },
+                {
+                    "name": "Get Single Contact",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts/{{contact_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts",
+                                "{{contact_id}}"
+                            ]
+                        },
+                        "description": "Fetches a single contact by ID (tenant-isolated)."
+                    }
+                },
+                {
+                    "name": "Update Contact",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Doe-Smith\",\n    \"company\": \"Acme Enterprise\",\n    \"custom_data\": {\n        \"lead_score\": 100,\n        \"tier\": \"Tier 1 Enterprise\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts/{{contact_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts",
+                                "{{contact_id}}"
+                            ]
+                        },
+                        "description": "Updates contact details and merges custom JSON metadata."
+                    }
+                },
+                {
+                    "name": "Delete Contact",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts/{{contact_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts",
+                                "{{contact_id}}"
+                            ]
+                        },
+                        "description": "Soft-deletes the contact."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. Excel Contact Import",
+            "item": [
+                {
+                    "name": "Import Contacts from Spreadsheet (Excel / CSV)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "description": "Excel (.xlsx, .xls) or CSV spreadsheet file. Max 10MB. Must include an email column header."
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/contacts/import",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "contacts",
+                                "import"
+                            ]
+                        },
+                        "description": "Uploads an Excel or CSV file to import contacts with in-file deduplication, case normalization, and user tenant isolation."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Campaigns - CRUD & Status",
+            "item": [
+                {
+                    "name": "List Campaigns",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns?per_page=20&page=1&status=&email_mode=&search=&sort=created_at&direction=desc",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "email_mode",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "created_at"
+                                },
+                                {
+                                    "key": "direction",
+                                    "value": "desc"
+                                }
+                            ]
+                        },
+                        "description": "Lists campaigns owned by the current user with filtering, pagination, and sorting."
+                    }
+                },
+                {
+                    "name": "Create Campaign (Mode: GENERATE)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.id) {",
+                                    "        pm.collectionVariables.set(\"campaign_id\", json.data.id);",
+                                    "        console.log(\"Campaign ID saved: \" + json.data.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"AI Automated Outreach Campaign\",\n    \"email_mode\": \"generate\",\n    \"ai_prompt\": \"Write a professional, compelling cold email introducing our enterprise AI workflow platform to CTOs.\",\n    \"ai_provider\": \"gemini\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns"
+                            ]
+                        },
+                        "description": "Creates a campaign in `generate` mode (AI prompt required)."
+                    }
+                },
+                {
+                    "name": "Create Campaign (Mode: POLISH)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.id) {",
+                                    "        pm.collectionVariables.set(\"campaign_id\", json.data.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Rough Draft Polish Campaign\",\n    \"email_mode\": \"polish\",\n    \"raw_input_email\": \"hey team, we have discounts on our services this week, check it out at our site.\",\n    \"ai_provider\": \"openai\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns"
+                            ]
+                        },
+                        "description": "Creates a campaign in `polish` mode (rough email draft required)."
+                    }
+                },
+                {
+                    "name": "Create Campaign (Mode: DIRECT)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var json = pm.response.json();",
+                                    "    if (json.data && json.data.id) {",
+                                    "        pm.collectionVariables.set(\"campaign_id\", json.data.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Direct Product Launch Announcement\",\n    \"email_mode\": \"direct\",\n    \"subject\": \"Special Announcement for {{company}}\",\n    \"email_body\": \"<p>Hello {{first_name}},<\\/p><p>We are delighted to invite you to our exclusive private preview.<\\/p><p>Best regards,<br>The Team<\\/p>\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns"
+                            ]
+                        },
+                        "description": "Creates a campaign in `direct` mode with complete subject and HTML body ready for dispatch."
+                    }
+                },
+                {
+                    "name": "Get Campaign Details (Review API)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}"
+                            ]
+                        },
+                        "description": "Exposes campaign content including generated subject, email body, and `is_review_required` flag for human review."
+                    }
+                },
+                {
+                    "name": "Update Campaign",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Updated Campaign Name\",\n    \"subject\": \"Updated Subject Line for Outreach\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}"
+                            ]
+                        },
+                        "description": "Updates editable fields for `draft` and `review` campaigns only."
+                    }
+                },
+                {
+                    "name": "Get Campaign Live Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "status"
+                            ]
+                        },
+                        "description": "Returns live database counters: queued, processing, sent, failed, cancelled counts, delivery progress %, and timestamps."
+                    }
+                },
+                {
+                    "name": "Get Aggregate Delivery Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/delivery-status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "delivery-status"
+                            ]
+                        },
+                        "description": "Returns exact recipient breakdown by status enum values (`total`, `queued`, `processing`, `sent`, `failed`, `cancelled`)."
+                    }
+                },
+                {
+                    "name": "Delete Campaign",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}"
+                            ]
+                        },
+                        "description": "Soft-deletes the campaign. Rejects deletion if campaign is actively sending or queued."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Campaigns - Recipients",
+            "item": [
+                {
+                    "name": "List Campaign Recipients",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/recipients?per_page=25&status=&search=&sort_by=created_at&sort_dir=desc",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "recipients"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "25"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "sort_by",
+                                    "value": "created_at"
+                                },
+                                {
+                                    "key": "sort_dir",
+                                    "value": "desc"
+                                }
+                            ]
+                        },
+                        "description": "Lists targeted recipients for the campaign with status, attempts, error messages, and delivery timestamps."
+                    }
+                },
+                {
+                    "name": "Add Recipients to Campaign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"contact_ids\": [\n        1\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/recipients",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "recipients"
+                            ]
+                        },
+                        "description": "Attaches contacts to the campaign. Verifies ownership of all contact IDs and prevents duplicate recipients."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. Campaigns - AI Generation & Lifecycle",
+            "item": [
+                {
+                    "name": "1. Trigger AI Generation (Idempotent)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"tone\": \"professional\",\n    \"target_audience\": \"Founders and Engineering Leads\",\n    \"key_points\": \"Seamless automated email campaigns, 10x ROI\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/generate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "generate"
+                            ]
+                        },
+                        "description": "Enqueues background AI copywriting (`GenerateCampaignEmailJob`). Idempotent (202 Accepted, 409 if already generating). NEVER sends email."
+                    }
+                },
+                {
+                    "name": "2. Approve Campaign (Human Gate)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/approve",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "approve"
+                            ]
+                        },
+                        "description": "CRITICAL SAFETY GATE: Transitions campaign to `approved`. Requires valid subject and body. Does NOT send email."
+                    }
+                },
+                {
+                    "name": "3. Dispatch Campaign (Start Sending)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/dispatch",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "dispatch"
+                            ]
+                        },
+                        "description": "Initiates delivery for an `approved` campaign by enqueuing `SendCampaignEmailJob` on Redis queue with rate limiting (202 Accepted, 409 if unapproved)."
+                    }
+                },
+                {
+                    "name": "4. Pause Campaign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/pause",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "pause"
+                            ]
+                        },
+                        "description": "Pauses an actively sending campaign safely."
+                    }
+                },
+                {
+                    "name": "5. Resume Campaign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/resume",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "resume"
+                            ]
+                        },
+                        "description": "Resumes a paused campaign and redispatches remaining queued recipients (202 Accepted)."
+                    }
+                },
+                {
+                    "name": "6. Cancel Campaign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/{{campaign_id}}/cancel",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "{{campaign_id}}",
+                                "cancel"
+                            ]
+                        },
+                        "description": "Cancels the campaign and marks pending/queued recipients as cancelled. Sent emails remain sent."
+                    }
+                }
+            ]
+        }
+    ]
+}

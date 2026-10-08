@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mailforge_ai_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+
+    networks:
+      - network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mailforge_ai_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    env_file:
+      - .env
+    command: php artisan queue:work --sleep=3 --tries=3 --timeout=90
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mailforge_ai_scheduler
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    env_file:
+      - .env
+    command: php artisan schedule:work
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - network
+
+  nginx:
+    image: nginx:alpine
+
+    container_name: mailforge_ai_nginx
+
+    restart: unless-stopped
+
+    ports:
+      - "8003:80"
+
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+
+    depends_on:
+      - app
+
+    networks:
+      - network
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: mailforge_ai_redis
+
+    restart: unless-stopped
+
+    ports:
+      - "6381:6379"
+
+    volumes:
+      - redis_dev_data:/data
+
+    networks:
+      - network
+
+volumes:
+  redis_dev_data:
+
+networks:
+  network:
+    driver: bridge
