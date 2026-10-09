@@ -54,7 +54,21 @@ class GenerateCampaignEmailJob implements ShouldQueue
         // Set to generating status
         $campaign->update(['status' => CampaignStatus::GENERATING]);
 
-        $processAction->execute($campaign, $this->options);
+        try {
+            $processAction->execute($campaign, $this->options);
+        } catch (\App\Products\MailForge\Exceptions\AIProviderException $e) {
+            if ($e->statusCode === 429) {
+                Log::warning("AI provider rate limited (429) for campaign {$this->campaignId}. Pausing and releasing job for 30 seconds...", [
+                    'provider' => $e->provider,
+                ]);
+
+                $this->release(30);
+
+                return;
+            }
+
+            throw $e;
+        }
     }
 
     /**

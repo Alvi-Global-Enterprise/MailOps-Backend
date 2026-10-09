@@ -141,6 +141,9 @@ PROMPT;
                         'status' => $statusCode,
                         'message' => $errorMsg,
                     ]);
+                    if ($statusCode === 429) {
+                        sleep(2);
+                    }
                     continue;
                 }
 
