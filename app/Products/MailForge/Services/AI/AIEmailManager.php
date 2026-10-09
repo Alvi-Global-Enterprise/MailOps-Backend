@@ -45,7 +45,7 @@ class AIEmailManager extends Manager
     {
         return new GeminiEmailProvider(
             apiKey: config('mailforge.ai.providers.gemini.api_key'),
-            model: (string) config('mailforge.ai.providers.gemini.model', 'gemini-1.5-flash'),
+            model: (string) config('mailforge.ai.providers.gemini.model', 'gemini-3.5-flash'),
             timeout: (int) config('mailforge.ai.providers.gemini.timeout', 30)
         );
     }

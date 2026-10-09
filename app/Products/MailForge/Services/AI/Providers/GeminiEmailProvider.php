@@ -20,11 +20,11 @@ class GeminiEmailProvider implements AIEmailProviderInterface
 
     public function __construct(
         protected ?string $apiKey = null,
-        protected string $model = 'gemini-1.5-flash',
+        protected string $model = 'gemini-3.5-flash',
         protected int $timeout = 30
     ) {
         $this->apiKey = $apiKey !== null ? $apiKey : (string) config('mailforge.ai.providers.gemini.api_key');
-        $this->model = $model ?: (string) config('mailforge.ai.providers.gemini.model', 'gemini-1.5-flash');
+        $this->model = $model ?: (string) config('mailforge.ai.providers.gemini.model', 'gemini-3.5-flash');
         $this->timeout = $timeout ?: (int) config('mailforge.ai.providers.gemini.timeout', 30);
     }
 
@@ -103,9 +103,12 @@ PROMPT;
                 ],
             ],
             'generationConfig' => [
-                'response_mime_type' => 'application/json',
+                'responseMimeType' => 'application/json',
                 'temperature' => $temperature,
                 'maxOutputTokens' => $maxTokens,
+                'thinkingConfig' => [
+                    'thinkingBudget' => 0,
+                ],
             ],
         ];
 
@@ -114,6 +117,7 @@ PROMPT;
         try {
             /** @var Response $response */
             $response = Http::timeout($this->timeout)
+                ->retry(2, 500, fn ($e) => $e instanceof ConnectionException, throw: false)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post($endpoint, $requestBody);
         } catch (ConnectionException $e) {
@@ -140,7 +144,15 @@ PROMPT;
 
         $responseData = $response->json();
         $candidates = $responseData['candidates'] ?? [];
-        $rawText = $candidates[0]['content']['parts'][0]['text'] ?? null;
+        $parts = $candidates[0]['content']['parts'] ?? [];
+
+        $rawText = null;
+        foreach ($parts as $part) {
+            if (! empty($part['text'])) {
+                $rawText = $part['text'];
+                break;
+            }
+        }
 
         if (empty($rawText)) {
             throw AIProviderException::invalidResponse('gemini', 'Empty candidate text returned by Gemini.');
@@ -183,13 +195,24 @@ PROMPT;
     {
         $clean = trim($rawContent);
 
-        if (str_starts_with($clean, '```')) {
+        if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/i', $clean, $matches)) {
+            $clean = trim($matches[1]);
+        } elseif (str_starts_with($clean, '```')) {
             $clean = (string) preg_replace('/^```(?:json)?\s*/i', '', $clean);
             $clean = (string) preg_replace('/\s*```$/', '', $clean);
             $clean = trim($clean);
         }
 
         $data = json_decode($clean, true);
+
+        if (! is_array($data)) {
+            $start = strpos($clean, '{');
+            $end = strrpos($clean, '}');
+            if ($start !== false && $end !== false && $end > $start) {
+                $sub = substr($clean, $start, $end - $start + 1);
+                $data = json_decode($sub, true);
+            }
+        }
 
         if (! is_array($data) || empty($data['subject'])) {
             throw AIProviderException::invalidResponse('gemini', 'Response JSON missing required "subject" field.');
