@@ -128,14 +128,17 @@ class SendCampaignEmailJob implements ShouldQueue
 
         $contact = $recipient->contact;
 
-        // 4. Render personalized templates
+        // 4. Render personalized templates (prefer active approved campaign content)
+        $rawSubject = ! empty($campaign->subject) ? (string) $campaign->subject : ($recipient->subject ?: '');
+        $rawBody = ! empty($campaign->email_body) ? (string) $campaign->email_body : ($recipient->personalized_body ?: '');
+
         $subject = EmailTemplatePersonalizer::personalize(
-            $recipient->subject ?: (string) $campaign->subject,
+            $rawSubject,
             $contact
         );
 
         $bodyHtml = EmailTemplatePersonalizer::personalize(
-            $recipient->personalized_body ?: (string) $campaign->email_body,
+            $rawBody,
             $contact
         );
 

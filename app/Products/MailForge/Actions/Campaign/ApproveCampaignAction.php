@@ -40,6 +40,13 @@ class ApproveCampaignAction
             throw new DomainException('Concurrent modification prevented campaign approval.');
         }
 
+        // Sync final approved subject and body to all attached recipients
+        \App\Products\MailForge\Models\CampaignRecipient::where('campaign_id', $campaign->id)->update([
+            'subject' => $campaign->subject,
+            'personalized_body' => $campaign->email_body,
+            'updated_at' => now(),
+        ]);
+
         $freshCampaign = $campaign->fresh();
         CampaignApproved::dispatch($freshCampaign);
 

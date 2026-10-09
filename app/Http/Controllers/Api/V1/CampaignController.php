@@ -168,6 +168,17 @@ class CampaignController extends Controller
 
         $campaign->update(array_intersect_key($validated, array_flip($safeAttributes)));
 
+        $recipientUpdates = [];
+        if (isset($validated['subject'])) {
+            $recipientUpdates['subject'] = $validated['subject'];
+        }
+        if (isset($validated['email_body'])) {
+            $recipientUpdates['personalized_body'] = $validated['email_body'];
+        }
+        if (! empty($recipientUpdates)) {
+            \App\Products\MailForge\Models\CampaignRecipient::where('campaign_id', $campaign->id)->update($recipientUpdates);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Campaign updated successfully.',

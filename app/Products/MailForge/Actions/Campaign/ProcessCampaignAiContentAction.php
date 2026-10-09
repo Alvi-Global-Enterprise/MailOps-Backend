@@ -9,6 +9,7 @@ use App\Products\MailForge\Enums\CampaignStatus;
 use App\Products\MailForge\Enums\EmailMode;
 use App\Products\MailForge\Models\AiGenerationLog;
 use App\Products\MailForge\Models\Campaign;
+use App\Products\MailForge\Models\CampaignRecipient;
 use App\Products\MailForge\Services\AI\AIEmailManager;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -79,6 +80,13 @@ class ProcessCampaignAiContentAction
                 'email_body' => $generated->bodyHtml,
                 'email_body_text' => $generated->bodyText,
                 'status' => CampaignStatus::REVIEW,
+            ]);
+
+            // Sync generated copy to any existing recipients already attached to this campaign
+            CampaignRecipient::where('campaign_id', $campaign->id)->update([
+                'subject' => $generated->subject,
+                'personalized_body' => $generated->bodyHtml,
+                'updated_at' => now(),
             ]);
 
             Log::info('Campaign AI copywriting generated successfully', [
