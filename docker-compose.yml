@@ -30,7 +30,7 @@ services:
       - ./:/var/www
     env_file:
       - .env
-    command: php artisan queue:work --sleep=3 --tries=3 --timeout=90
+    command: php artisan queue:work redis --queue=campaign-generation,campaign-sending,default --sleep=3 --tries=3 --backoff=15,60 --timeout=300
     depends_on:
       redis:
         condition: service_started

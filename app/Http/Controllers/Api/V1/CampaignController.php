@@ -374,7 +374,7 @@ class CampaignController extends Controller
             ], 409);
         }
 
-        if ($campaign->status->isTerminal() || in_array($campaign->status, [CampaignStatus::SENDING, CampaignStatus::QUEUED], true)) {
+        if (in_array($campaign->status, [CampaignStatus::COMPLETED, CampaignStatus::CANCELLED, CampaignStatus::SENDING, CampaignStatus::QUEUED], true)) {
             return response()->json([
                 'success' => false,
                 'message' => "Cannot trigger AI generation for campaign in [{$campaign->status->value}] status.",

@@ -19,12 +19,12 @@ class GenerateCampaignEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 4;
 
     /**
      * @var list<int>
      */
-    public array $backoff = [15, 60];
+    public array $backoff = [10, 30, 90];
 
     /**
      * @param  array<string, mixed>  $options

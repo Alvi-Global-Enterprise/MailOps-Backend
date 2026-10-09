@@ -77,7 +77,8 @@ class GeminiEmailProvider implements AIEmailProviderInterface
             throw AIProviderException::authenticationFailed('gemini');
         }
 
-        $activeModel = $payload->options['model'] ?? $this->model;
+        $primaryModel = $payload->options['model'] ?? $this->model;
+        $candidateModels = array_unique([$primaryModel, 'gemini-3.5-flash', 'gemini-3.1-flash-lite']);
         $temperature = (float) ($payload->options['temperature'] ?? config('mailforge.ai.temperature', 0.7));
         $maxTokens = (int) ($payload->options['max_tokens'] ?? config('mailforge.ai.max_tokens', 1500));
 
@@ -90,8 +91,6 @@ Output MUST be a strictly valid JSON object with EXACTLY the following keys:
 }
 Return ONLY valid JSON.
 PROMPT;
-
-        $endpoint = "{$this->baseUrl}/models/{$activeModel}:generateContent?key={$this->apiKey}";
 
         $requestBody = [
             'contents' => [
@@ -113,33 +112,66 @@ PROMPT;
         ];
 
         $startTime = microtime(true);
+        $response = null;
+        $activeModel = $primaryModel;
+        $lastException = null;
 
-        try {
-            /** @var Response $response */
-            $response = Http::timeout($this->timeout)
-                ->retry(2, 500, fn ($e) => $e instanceof ConnectionException, throw: false)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($endpoint, $requestBody);
-        } catch (ConnectionException $e) {
-            Log::error('Google Gemini API request timeout or connection failure', [
-                'provider' => 'gemini',
-                'model' => $activeModel,
-            ]);
+        foreach ($candidateModels as $model) {
+            $activeModel = $model;
+            $endpoint = "{$this->baseUrl}/models/{$activeModel}:generateContent?key={$this->apiKey}";
 
-            throw AIProviderException::timeout('gemini', $this->timeout, $e);
-        } catch (Throwable $e) {
-            Log::error('Google Gemini API client error', [
-                'provider' => 'gemini',
-                'error' => $e->getMessage(),
-            ]);
+            try {
+                /** @var Response $response */
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders(['Content-Type' => 'application/json'])
+                    ->post($endpoint, $requestBody);
 
-            throw AIProviderException::apiError('gemini', $e->getMessage(), 500, $e);
+                if ($response->successful()) {
+                    break;
+                }
+
+                $statusCode = $response->status();
+                $errorMsg = (string) ($response->json('error.message') ?? '');
+
+                // If high demand (503), rate limit (429), or temporary spike, try next model
+                if ($statusCode === 503 || $statusCode === 429 || str_contains(strtolower($errorMsg), 'demand')) {
+                    Log::warning("Gemini model [{$activeModel}] experiencing high demand or rate limit. Trying fallback...", [
+                        'provider' => 'gemini',
+                        'failed_model' => $activeModel,
+                        'status' => $statusCode,
+                        'message' => $errorMsg,
+                    ]);
+                    continue;
+                }
+
+                // If non-transient error (e.g. invalid key), fail immediately
+                $this->handleApiErrorResponse($response, $activeModel);
+            } catch (ConnectionException $e) {
+                Log::warning("Gemini model [{$activeModel}] connection timeout. Trying fallback...", [
+                    'provider' => 'gemini',
+                    'failed_model' => $activeModel,
+                ]);
+                $lastException = $e;
+                continue;
+            } catch (Throwable $e) {
+                if ($e instanceof AIProviderException) {
+                    throw $e;
+                }
+                $lastException = $e;
+            }
         }
 
         $durationMs = (int) round((microtime(true) - $startTime) * 1000);
 
-        if (! $response->successful()) {
-            $this->handleApiErrorResponse($response, $activeModel);
+        if (! $response || ! $response->successful()) {
+            if ($lastException instanceof ConnectionException) {
+                throw AIProviderException::timeout('gemini', $this->timeout, $lastException);
+            }
+            if ($response) {
+                $this->handleApiErrorResponse($response, $activeModel);
+            }
+
+            throw AIProviderException::apiError('gemini', $lastException?->getMessage() ?? 'All Gemini model candidates failed.', 500);
         }
 
         $responseData = $response->json();
